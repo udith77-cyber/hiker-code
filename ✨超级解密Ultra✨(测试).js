@@ -2,7 +2,7 @@
 const Aquarius = {
     d: [], // 数据数组，用于存储界面元素
     author: "Aries", // 作者信息
-    version: "20250826", // 版本号
+    version: "20250827", // 版本号
 
     // 依赖提取函数，用于从字符串中提取{}内的内容
     rely: (data) => {
@@ -11,29 +11,71 @@ const Aquarius = {
 
     // 主界面函数
     home: () => {
+        Aquarius.d.length = 0; // 防止重复进入时界面元素叠加
         var d = Aquarius.d;
+        var REPO_BASE = base64Decode('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3VkaXRoNzctY3liZXIvaGlrZXItY29kZS9yZWZzL2hlYWRzL21haW4v');
+        var _okPrefix = ''; // 本次已验证可用的镜像前缀
 
-        // GitHub API 相关处理
-        if (!storage0.getItem('githubapi')) {
-            let github_url = 'https://api.github.com';
-            let github_data = JSON.parse(fetch(github_url)).data;
-            storage0.setItem('githubapi', github_data)
-        }
-        if (getMyVar('github_url') == '') {
-            for (let item of storage0.getItem('githubapi')) {
-                let data = JSON.parse(fetch(item, {
-                    withStatusCode: true,
-                    timeout: 5000,
-                }));
-                if (data.statusCode == 200) {
-                    putMyVar('github_url', item + '/');
-                    break;
-                }
+        // 带超时的 body 拉取（兼容纯文本 / withStatusCode JSON 两种返回形态）
+        function fetchBody(url, timeoutMs) {
+            var resp = fetch(url, {timeout: timeoutMs || 8000});
+            if (typeof resp !== 'string' || !resp) { return null; }
+            var s = resp.trim();
+            if (s.charAt(0) == '{') {
+                try {
+                    var o = JSON.parse(s);
+                    if (o && typeof o.statusCode !== 'undefined') {
+                        return (o.statusCode == 200 && o.body) ? o.body : null;
+                    }
+                } catch (e) {}
             }
+            return resp;
         }
 
-        // 获取配置文件
-        var config = JSON.parse(fetch(getMyVar('github_url') + base64Decode('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3VkaXRoNzctY3liZXIvaGlrZXItY29kZS9yZWZzL2hlYWRzL21haW4v') + MY_RULE.title + '_config.txt'));
+        // ① 智能配置加载：多镜像重试 + 本地缓存兜底
+        function loadConfig() {
+            var prefixes = [];
+            function addP(x) { if (x != null && prefixes.indexOf(x) < 0) { prefixes.push(x); } }
+            addP(getMyVar('github_url') || '');
+            addP('https://hk.gh-proxy.com/');
+            addP('https://gh-proxy.com/');
+            addP('');
+            var cfgUrl = REPO_BASE + MY_RULE.title + '_config.txt';
+            for (var i = 0; i < prefixes.length; i++) {
+                try {
+                    var text = fetchBody(prefixes[i] + cfgUrl, 8000);
+                    if (text && text.trim().charAt(0) == '{') {
+                        var cfg = JSON.parse(text);
+                        _okPrefix = prefixes[i];
+                        try { setItem('aquarius_config_cache', text); } catch (se) {}
+                        cfg._fromCache = false;
+                        return cfg;
+                    }
+                } catch (e) {}
+            }
+            try {
+                var cached = getItem('aquarius_config_cache');
+                if (cached && cached.trim().charAt(0) == '{') {
+                    var cfg2 = JSON.parse(cached);
+                    cfg2._fromCache = true;
+                    return cfg2;
+                }
+            } catch (e) {}
+            return null;
+        }
+
+        var config = loadConfig();
+        if (!config) {
+            d.push({
+                title: '⚠️ 配置加载失败',
+                desc: '无法连接更新服务器，请检查网络后下拉刷新再试',
+                col_type: 'text_center_1',
+                url: 'toast://配置加载失败，请检查网络'
+            });
+            setResult(d);
+            return;
+        }
+        if (config._fromCache) { toast('⚠️ 当前为离线缓存模式，配置可能不是最新'); }
         var enable = config.enable;
         var enableUpdate = config.enableUpdate;
         var ver = config.version;
@@ -48,18 +90,27 @@ const Aquarius = {
                 col_type: "text_center_1"
             })
             setResult(d);
+            return; // 修复：原来缺少 return，远程开关实际关不掉界面
         }
 
-        // 强制更新检查
+        // 强制更新检查（先校验再写文件，避免把 404 页面写进本地）
         if (ver != Aquarius.version && enableUpdate == "1") {
-            showLoading('检测到新版本，更新中...')
-            writeFile('hiker://files/rules/Aquarius/' + MY_RULE.title + '.js', fetch(getMyVar('github_url') + base64Decode('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3VkaXRoNzctY3liZXIvaGlrZXItY29kZS9yZWZzL2hlYWRzL21haW4v') + MY_RULE.title + '.js'));
-            java.lang.Thread.sleep(2000);
-            hideLoading();
-            toast('更新完成！');
+            var newJs = null;
+            try { newJs = fetchBody((_okPrefix || getMyVar('github_url') || '') + REPO_BASE + MY_RULE.title + '.js', 20000); } catch (e) {}
+            if (newJs && newJs.length > 5000 && newJs.indexOf('Aquarius') >= 0) {
+                showLoading('检测到新版本，更新中...')
+                writeFile('hiker://files/rules/Aquarius/' + MY_RULE.title + '.js', newJs);
+                java.lang.Thread.sleep(2000);
+                hideLoading();
+                toast('更新完成！');
+            } else {
+                toast('⚠️ 更新包校验失败，请检查网络后重进');
+            }
             refreshPage();
+            return;
         }
 
+        try {
         // 获取剪贴板内容函数（代码来自：云盘君.简）
         function getClipboardText() {
             try {
@@ -366,6 +417,16 @@ const Aquarius = {
         // id: "saveFile"
         // }
         // });
+
+        } catch (e) {
+            // ④ 全局兜底：任何未预料的异常都显示中文卡片，不再白屏/崩溃
+            d.push({
+                title: '⚠️ 页面加载异常',
+                desc: '错误信息：' + e + '\n可尝试下拉刷新或重新进入',
+                col_type: 'text_center_1',
+                url: 'toast://页面加载异常'
+            });
+        }
 
         setResult(d);
     },
