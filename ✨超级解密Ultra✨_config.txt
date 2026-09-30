@@ -1,6 +1,0 @@
-{
-"enable":"1",
-"enableUpdate":"0",
-"version":"20250825"
-
-}
