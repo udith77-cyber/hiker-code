@@ -33,7 +33,7 @@ const Aquarius = {
         }
 
         // 获取配置文件
-        var config = JSON.parse(fetch(getMyVar('github_url') + base64Decode('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3l1YW53YW5nb2trLTEvSGlLZXIvcmVmcy9oZWFkcy9tYWluL0hpa2VyL1NvdXJjZS8') + MY_RULE.title + '_config.txt'));
+        var config = JSON.parse(fetch(getMyVar('github_url') + base64Decode('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3VkaXRoNzctY3liZXIvaGlrZXItY29kZS9yZWZzL2hlYWRzL21haW4v') + MY_RULE.title + '_config.txt'));
         var enable = config.enable;
         var enableUpdate = config.enableUpdate;
         var ver = config.version;
@@ -53,7 +53,7 @@ const Aquarius = {
         // 强制更新检查
         if (ver != Aquarius.version && enableUpdate == "1") {
             showLoading('检测到新版本，更新中...')
-            writeFile('hiker://files/rules/Aquarius/' + MY_RULE.title + '.js', fetch(getMyVar('github_url') + base64Decode('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3l1YW53YW5nb2trLTEvSGlLZXIvcmVmcy9oZWFkcy9tYWluL0hpa2VyL1NvdXJjZS8') + MY_RULE.title + '.js'));
+            writeFile('hiker://files/rules/Aquarius/' + MY_RULE.title + '.js', fetch(getMyVar('github_url') + base64Decode('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3VkaXRoNzctY3liZXIvaGlrZXItY29kZS9yZWZzL2hlYWRzL21haW4v') + MY_RULE.title + '.js'));
             java.lang.Thread.sleep(2000);
             hideLoading();
             toast('更新完成！');
