@@ -1,5 +1,5 @@
-// ULTRA_IMPL_VERSION = 20260934  （preRule 用此标记比对版本，请勿删除）
-var ULTRA_IMPL_VERSION = 20260934;
+// ULTRA_IMPL_VERSION = 20260935  （preRule 用此标记比对版本，请勿删除）
+var ULTRA_IMPL_VERSION = 20260935;
 var d = [];
 // ===== 远程开关（preRule 每天联网更新 ultra_disabled 标记） =====
 var _ultraDisabled = '';
