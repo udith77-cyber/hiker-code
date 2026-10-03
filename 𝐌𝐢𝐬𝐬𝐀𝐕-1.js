@@ -1,5 +1,5 @@
 const Apollo = {
-    version: "20251004",
+    version: "20251005",
     empty: 'hiker://empty',
     url: "https://missav.live/cn/",
     d: [],
@@ -572,20 +572,32 @@ const Apollo = {
                         "origin": getHome(url)
                     }
                 })
-                hghest_quality = group_quality.match(/^(.*)\.m3u8$/gm).map(v => source.replace("playlist.m3u8", v))
-                name_quality = group_quality.match(/RESOLUTION=.*$/gm).map(n => n.replace("RESOLUTION=", ""))
-                // 按分辨率降序排序 分辨率 数组，并同时调整 hghest_quality
-                var sortedData = name_quality.map((name, index) => ({
-                    name,
-                    url: hghest_quality[index]
-                })).sort((a, b) => b.name.match(/(\d+)/)[1] - a.name.match(/(\d+)/)[1]);
-                // 分开排序后的 names 和 urls 数组
-                var sortedNames = sortedData.map(item => item.name);
-                var sortedUrls = sortedData.map(item => item.url);
+                group_quality = (group_quality || "").replace(/\r/g, "");
+                var m3u8list = group_quality.match(/^(.*)\.m3u8$/gm);
+                var reslist = group_quality.match(/RESOLUTION=.*$/gm);
+                var qnames, qurls;
+                if (m3u8list && m3u8list.length > 0) {
+                    var hghest_quality = m3u8list.map(v => source.replace("playlist.m3u8", v));
+                    var name_quality = (reslist || []).map(n => n.replace("RESOLUTION=", ""));
+                    while (name_quality.length < hghest_quality.length) name_quality.push("画质" + (name_quality.length + 1));
+                    var sortedData = name_quality.map((name, index) => ({
+                        name: name,
+                        url: hghest_quality[index]
+                    })).sort((a, b) => {
+                        var am = (a.name || "").match(/(\d+)/), bm = (b.name || "").match(/(\d+)/);
+                        return (bm ? parseInt(bm[1]) : 0) - (am ? parseInt(am[1]) : 0);
+                    });
+                    qnames = sortedData.map(item => item.name);
+                    qurls = sortedData.map(item => item.url);
+                } else {
+                    // 取不到分画质列表时直接播 source（兼容单 m3u8 / 站点改版）
+                    qnames = ["播放"];
+                    qurls = [source];
+                }
                 let playlist = JSON.stringify({
-                    names: sortedNames,
-                    urls: sortedUrls,
-                    headers: new Array(hghest_quality.length).fill({
+                    names: qnames,
+                    urls: qurls,
+                    headers: new Array(qurls.length).fill({
                         Referer: getHome(url) + "/"
                     })
                 });
